@@ -13,7 +13,7 @@ namespace BlePlugin {
 		// デバイス情報
 		struct DeviceInfo {
 			static const int TimeoutSec = 1500;
-//			std::string name;
+			std::string name;
 			uint64_t addr;
 			int rssi;
 			clock_t lastFound;
@@ -23,7 +23,7 @@ namespace BlePlugin {
 			{
 			}
 			DeviceInfo(const DeviceInfo& src);
-			DeviceInfo(const char* _name,
+			DeviceInfo(const std::string _name,
 				uint64_t _addr,
 				int _rssi);
 
@@ -41,6 +41,7 @@ namespace BlePlugin {
 		std::vector<DeviceInfo> m_cacheData;
 		static BleDeviceWatcher s_instance;
 		std::mutex mtx;
+		std::vector<winrt::guid> service_uuids;
 
 	public:
 		static BleDeviceWatcher& GetInstance();
@@ -48,6 +49,10 @@ namespace BlePlugin {
 		void ClearFilterServiceUUID();
 		void AddServiceUUID(const WinRtGuid &guid);
 		void AddServiceUUID(uint32_t d1, uint32_t d2, uint32_t d3, uint32_t d4);
+
+		void ClearCustomFilterServiceUUID();
+		void AddCustomFilterServiceUUID(const WinRtGuid &guid);
+		void AddCustomFilterServiceUUID(uint32_t d1, uint32_t d2, uint32_t d3, uint32_t d4);
 
 		void Start();
 		void Stop();

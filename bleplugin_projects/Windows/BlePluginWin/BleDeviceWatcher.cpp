@@ -7,16 +7,16 @@ using namespace BlePlugin;
 
 BleDeviceWatcher BleDeviceWatcher::s_instance;
 // DeviceInfo
-BleDeviceWatcher::DeviceInfo::DeviceInfo(const char* _name,
-	uint64_t _addr,int _rssi) : 
-	//name(_name),
+BleDeviceWatcher::DeviceInfo::DeviceInfo(const std::string _name,
+	uint64_t _addr,int _rssi) :
+	name(_name),
 	addr(_addr), rssi(_rssi) {
 	this->lastFound = clock();
 }
 
 BleDeviceWatcher::DeviceInfo::DeviceInfo(const BleDeviceWatcher::DeviceInfo& src)
 	:
-	//name(src.name),
+	name(src.name),
 	addr(src.addr),rssi(src.rssi),lastFound(src.lastFound)
 {
 }
@@ -27,7 +27,7 @@ BleDeviceWatcher::DeviceInfo::DeviceInfo(const BleDeviceWatcher::DeviceInfo& src
 const BleDeviceWatcher::DeviceInfo &
 	BleDeviceWatcher::DeviceInfo::operator= (const BleDeviceWatcher::DeviceInfo &src)
 {
-//	this->name = src.name;
+	this->name = src.name;
 	this->addr = src.addr;
 	this->rssi = src.rssi;
 	this->lastFound = src.lastFound;
@@ -60,6 +60,19 @@ void BleDeviceWatcher::AddServiceUUID(uint32_t d1, uint32_t d2, uint32_t d3, uin
 	m_filer.Advertisement().ServiceUuids().Append(guid);
 }
 
+void BleDeviceWatcher::ClearCustomFilterServiceUUID() {
+	service_uuids.clear();
+}
+
+void BleDeviceWatcher::AddCustomFilterServiceUUID(const WinRtGuid& guid) {
+	service_uuids.push_back(guid);
+}
+
+void BleDeviceWatcher::AddCustomFilterServiceUUID(uint32_t d1, uint32_t d2, uint32_t d3, uint32_t d4) {
+	auto guid = Utility::CreateGUID(d1, d2, d3, d4);
+	service_uuids.push_back(guid);
+}
+
 void BleDeviceWatcher::Start() {
 
     //　TODO
@@ -67,8 +80,9 @@ void BleDeviceWatcher::Start() {
     // Activeスキャンすれば、ScanResponseとかでデータが取れるはずですが…
     // Filterを設定していると、ScanResponseがフィルターされて来ませんでした。
     // ※nameとManufactureData対応をチャントやるとしたら自前で ServiceのUUIDでフィルターしないといけなさそうです…
+	// →　Unity側でフィルターすることにしました。
     m_watcher.AdvertisementFilter(m_filer);
-    m_watcher.ScanningMode(WinRtBleScanMode::Passive);
+    m_watcher.ScanningMode(WinRtBleScanMode::Active);
     m_watcher.Received(BleDeviceWatcher::ReceiveCallBack);
     m_watcher.Start();
 
@@ -99,7 +113,7 @@ const char* BleDeviceWatcher::GetName(int idx)const {
 	if (idx < 0 || idx >= m_cacheData.size()) {
 		return nullptr;
 	}
-    return "";// m_cacheData.at(idx).name.c_str();
+    return m_cacheData.at(idx).name.c_str();
 }
 uint64_t BleDeviceWatcher::GetAddr(int idx)const {
 	if (idx < 0 || idx >= m_cacheData.size()) {
@@ -139,8 +153,17 @@ void BleDeviceWatcher::OnReceive(
 	uint64_t addr = args.BluetoothAddress();
 	auto advertisement = args.Advertisement();
 
+	// Filter
+	for (auto it = 0; it < this->service_uuids.size(); ++it) {
+		uint32_t idx = -1;
+		bool found = advertisement.ServiceUuids().IndexOf(this->service_uuids.at(it), idx);
+		if (!found) {
+			return;
+		}
+	}
 
-#if false
+
+#if true
     auto advertiseType = args.AdvertisementType();
     // toioだと、ConnectableUndirectedでは・・・
     // Advertiseのセクション 0x01と 0x07が来るが・・・ほかが来ない…
@@ -156,16 +179,19 @@ void BleDeviceWatcher::OnReceive(
     // name And ManufactureData
     // toioでは ScanResponseで入ってくるデータ
 	int manufactureSize = advertisement.ManufacturerData().Size();
-	auto name = advertisement.LocalName().c_str();
+	auto name = winrt::to_string(advertisement.LocalName());
     int nameSize = advertisement.LocalName().size();
 #endif
 
     auto findIt = m_DeviceMap.find(addr);
     if (findIt == m_DeviceMap.end()) {
-        DeviceInfo deviceInfo("", addr, rssi);
+        DeviceInfo deviceInfo(name, addr, rssi);
         m_DeviceMap.emplace(addr, deviceInfo);
     }
     else {
+		if (nameSize > 0) {
+			findIt->second.name = name;
+		}
         findIt->second.Update(rssi);
     }
 }

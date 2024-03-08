@@ -25,13 +25,20 @@ void BleDeviceObject::ConnectRequest() {
 	}
 }
 void BleDeviceObject::Disconnect() {
-	for (auto it = m_services.begin(); it != m_services.end(); ++it) {
-		it->Close();
+	try
+	{
+		for (auto it = m_services.begin(); it != m_services.end(); ++it) {
+			it->Close();
+		}
+		if (m_device != nullptr) {
+			m_device.Close();
+		}
+		this->ClearDeviceInfo();
 	}
-    if (m_device != nullptr) {
-        m_device.Close();
-    }
-    this->ClearDeviceInfo();
+	catch(const std::exception& e)
+	{
+		// std::cerr << e.what() << '\n';
+	}
 }
 
 void BleDeviceObject::Update() {

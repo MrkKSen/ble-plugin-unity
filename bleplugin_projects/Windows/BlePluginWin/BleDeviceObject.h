@@ -1,6 +1,7 @@
 #pragma once
 
 #include "pch.h"
+#include <mutex>
 
 namespace BlePlugin {
 	class NotificateData {
